@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"artem.cz/albums"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -19,47 +19,43 @@ func main() {
 }
 
 func getAllAlbums(c *gin.Context) {
-	var albums = albums.getAll()
-	c.IndentedJSON(http.StatusOK, albums)
+	c.IndentedJSON(http.StatusOK, albums.GetAll())
 }
 
 func getAlbumById(c *gin.Context) {
 
-	id := c.Param("id")
+	idParamAsString := c.Param("id")
+	id, err := strconv.Atoi(idParamAsString)
 
-	for _, a := range albums.getAll() {
-		if a.ID == id {
-			c.IndentedJSON(http.StatusOK, a)
-			return
-		}
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": idParamAsString + " is not valid number"})
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+
+	album, err := albums.GetById(id)
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, album)
 }
 
 func postAlbums(c *gin.Context) {
 
-	var newAlbum albums.album
+	var newAlbum albums.Album
 
 	if err := c.BindJSON(&newAlbum); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Not valid Album"})
 		return
 	}
 
-	var errors string
-
-	if newAlbum.Title == "" {
-		errors += "Title can't be empty"
-	}
-
-	if newAlbum.Artist == "" {
-		errors += "Artist can't be empty"
-	}
+	var album, errors = albums.CreateAlbum(newAlbum)
 
 	if errors != "" {
 		c.IndentedJSON(http.StatusBadRequest, errors)
 		return
 	}
 
-	newAlbum.ID = strconv.Itoa(len(albums.getAll()) + 1)
-	// albums = append(albums, newAlbum)
-	c.IndentedJSON(http.StatusOK, newAlbum)
+	c.IndentedJSON(http.StatusOK, album)
 }
